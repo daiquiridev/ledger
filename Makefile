@@ -1,37 +1,38 @@
 APP_NAME  = ledger
-REMOTE    = hetzner
 SERVER    = 91.99.190.45
-REPO_DIR  = /opt/ledger
+DEPLOY_DIR = /opt/docker/ledger
+SRC_DIR   = $(DEPLOY_DIR)/src
+DC        = docker compose -f $(DEPLOY_DIR)/docker-compose.yml
 SSH       = ssh root@$(SERVER)
 
-.PHONY: deploy logs db-shell migrate seed restart pull build
+.PHONY: deploy logs db-shell migrate seed restart pull build status help
 
 deploy: ## Full deploy: pull + build + restart
-	$(SSH) "cd $(REPO_DIR) && git pull && docker compose build web && docker compose up -d --no-deps web"
+	$(SSH) "cd $(SRC_DIR) && git pull && $(DC) build ledger_app && $(DC) up -d --no-deps ledger_app"
 
 pull: ## Pull latest code only
-	$(SSH) "cd $(REPO_DIR) && git pull"
+	$(SSH) "cd $(SRC_DIR) && git pull"
 
-build: ## Rebuild web container
-	$(SSH) "cd $(REPO_DIR) && docker compose build web"
+build: ## Rebuild app container
+	$(SSH) "$(DC) build ledger_app"
 
-restart: ## Restart web container (no rebuild)
-	$(SSH) "cd $(REPO_DIR) && docker compose restart web"
+restart: ## Restart app container (no rebuild)
+	$(SSH) "$(DC) restart ledger_app"
 
-logs: ## Tail web container logs
-	$(SSH) "cd $(REPO_DIR) && docker compose logs -f web"
+logs: ## Tail app container logs
+	$(SSH) "$(DC) logs -f ledger_app"
 
 db-shell: ## Open psql shell in db container
-	$(SSH) "cd $(REPO_DIR) && docker compose exec db psql -U ledger -d ledger"
+	$(SSH) "$(DC) exec ledger_db psql -U ledger -d ledger"
 
-migrate: ## Run drizzle migrations
-	$(SSH) "cd $(REPO_DIR) && docker compose exec web node -e \"const { migrate } = require('drizzle-orm/postgres-js/migrator'); const { drizzle } = require('drizzle-orm/postgres-js'); const postgres = require('postgres'); const client = postgres(process.env.DATABASE_URL); migrate(drizzle(client), { migrationsFolder: 'drizzle' }).then(() => { console.log('done'); process.exit(0); }).catch(e => { console.error(e); process.exit(1); });\""
+migrate: ## Run drizzle push via temp container
+	$(SSH) "cd $(SRC_DIR) && docker run --rm --network proxy_network -e DATABASE_URL='postgresql://ledger:Qwe123!@@ledger_db:5432/ledger' -v \$$(pwd):/app -w /app node:22-alpine sh -c 'npm ci --silent && npx drizzle-kit push'"
 
-seed: ## Run db seed
-	$(SSH) "cd $(REPO_DIR) && docker compose exec web node -r tsconfig-paths/register -r ts-node/register lib/db/seed.ts"
+seed: ## Run db seed via temp container
+	$(SSH) "cd $(SRC_DIR) && docker run --rm --network proxy_network -e DATABASE_URL='postgresql://ledger:Qwe123!@@ledger_db:5432/ledger' -v \$$(pwd):/app -w /app node:22-alpine sh -c 'npm ci --silent && npx tsx lib/db/seed.ts'"
 
 status: ## Show container status
-	$(SSH) "cd $(REPO_DIR) && docker compose ps"
+	$(SSH) "$(DC) ps"
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
