@@ -18,5 +18,5 @@ jobs:
             cd /opt/docker/ledger/src
             git pull
             docker compose -f /opt/docker/ledger/docker-compose.yml build ledger_app
-            docker compose -f /opt/docker/ledger/docker-compose.yml up -d --no-deps ledger_app
+            docker compose -f /opt/docker/ledger/docker-compose.yml up -d --force-recreate --no-deps ledger_app
             docker image prune -f
