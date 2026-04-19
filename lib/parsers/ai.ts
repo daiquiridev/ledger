@@ -24,7 +24,7 @@ function parseJsonFromText(text: string): ParsedTransaction[] {
 async function parseWithGemini(text: string): Promise<ParseResult> {
   const { GoogleGenerativeAI } = await import("@google/generative-ai");
   const genai = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY!);
-  const model = genai.getGenerativeModel({ model: "gemini-1.5-flash" });
+  const model = genai.getGenerativeModel({ model: "gemini-2.0-flash-lite" });
 
   const result = await model.generateContent(
     `${PROMPT}\n\nParse this bank statement:\n\n${text.slice(0, 15000)}`
