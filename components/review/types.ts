@@ -5,7 +5,7 @@ export interface ReviewTx {
   amount: string | number;
   currency: string;
   categoryId: string | null;
-  accountId: string;
+  accountId: string | null;
   note: string | null;
   suspicious: boolean | null;
   reviewStatus: "pending" | "approved" | "skipped" | null;

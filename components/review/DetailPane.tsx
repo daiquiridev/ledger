@@ -144,7 +144,7 @@ export function DetailPane({ tx, categories, accounts, lang, update, onApprove, 
           <label>{t("Hesap", "Account")}</label>
           <select
             className="select-field"
-            value={tx.accountId}
+            value={tx.accountId ?? ""}
             onChange={(e) => update(tx.id, { accountId: e.target.value })}
           >
             {accounts.map((a) => (

@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import { usePrefs } from "@/components/shell/ThemeProvider";
 
-interface Tx { id: string; date: string; description: string; amount: string; currency: string; categoryId: string | null; accountId: string; note: string | null; }
+interface Tx { id: string; date: string; description: string; amount: string; currency: string; categoryId: string | null; accountId: string | null; note: string | null; }
 interface Category { id: string; labelTr: string; labelEn: string; parentId: string | null; color: string | null; }
 interface Account { id: string; name: string; }
 

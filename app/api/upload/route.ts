@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
       if (Math.abs(tx.amount) > 10000) suspicious++;
 
       return {
-        accountId: accountId ?? "00000000-0000-0000-0000-000000000000",
+        accountId: accountId ?? null,
         uploadId: upload.id,
         date: tx.date,
         description: tx.description,

@@ -67,7 +67,7 @@ export const uploads = pgTable("uploads", {
 // ── Transactions ──────────────────────────────────────────
 export const transactions = pgTable("transactions", {
   id: uuid("id").primaryKey().defaultRandom(),
-  accountId: uuid("account_id").references(() => accounts.id).notNull(),
+  accountId: uuid("account_id").references(() => accounts.id),
   uploadId: uuid("upload_id").references(() => uploads.id),
   date: date("date").notNull(),
   description: text("description").notNull(),

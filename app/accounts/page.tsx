@@ -14,7 +14,7 @@ export default async function AccountsPage() {
   ]);
 
   const countMap: Record<string, number> = {};
-  txCounts.forEach((r) => { countMap[r.accountId] = Number(r.count); });
+  txCounts.forEach((r) => { if (r.accountId) countMap[r.accountId] = Number(r.count); });
 
   return <AccountsClient accounts={accRows} txCounts={countMap} />;
 }
