@@ -17,18 +17,21 @@ export async function parseFile(buffer: Buffer, filename: string): Promise<Parse
     const result = await parsePdf(buffer);
     if (result.transactions.length > 0) return result;
 
-    // Fallback to AI
+    // AI fallback — graceful if no key configured
     let text = "";
     try {
       const data = await pdfParse(buffer);
       text = data.text;
     } catch {
-      return { transactions: [], method: "ai", error: "PDF okunamadı" };
+      return { transactions: [], method: "structural", error: "PDF okunamadı — şifreli veya taramalı olabilir" };
+    }
+    if (!text.trim()) {
+      return { transactions: [], method: "structural", error: "PDF'den metin çıkarılamadı — AI anahtarı eklenerek tekrar denenebilir" };
     }
     return parseWithAI(text);
   }
 
-  // CSV — simple fallback
+  // CSV
   const text = buffer.toString("utf-8");
   return parseWithAI(text);
 }

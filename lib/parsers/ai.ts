@@ -1,13 +1,11 @@
 /**
- * AI fallback parser using Claude API.
- * Called when structural PDF parsing yields 0 transactions.
+ * AI fallback parser using Gemini (or Anthropic if configured).
+ * Called when structural PDF/XLS parsing yields 0 transactions.
+ * If no AI key is configured, returns an empty result gracefully.
  */
-import Anthropic from "@anthropic-ai/sdk";
 import type { ParsedTransaction, ParseResult } from "./types";
 
-const client = new Anthropic();
-
-const SYSTEM = `You are a bank statement parser. Extract all transactions from the provided text.
+const PROMPT = `You are a bank statement parser. Extract all transactions from the provided text.
 Return a JSON array of objects with these exact fields:
 - date: "YYYY-MM-DD"
 - description: string (merchant name, cleaned up)
@@ -17,38 +15,67 @@ Return a JSON array of objects with these exact fields:
 
 Return ONLY the JSON array, no explanation. If no transactions found, return [].`;
 
-export async function parseWithAI(text: string): Promise<ParseResult> {
+function parseJsonFromText(text: string): ParsedTransaction[] {
+  const match = text.match(/\[[\s\S]*\]/);
+  if (!match) throw new Error("No JSON array found");
+  return JSON.parse(match[0]) as ParsedTransaction[];
+}
+
+async function parseWithGemini(text: string): Promise<ParseResult> {
+  const { GoogleGenerativeAI } = await import("@google/generative-ai");
+  const genai = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY!);
+  const model = genai.getGenerativeModel({ model: "gemini-2.0-flash" });
+
+  const result = await model.generateContent(
+    `${PROMPT}\n\nParse this bank statement:\n\n${text.slice(0, 15000)}`
+  );
+  const responseText = result.response.text();
+  const parsed = parseJsonFromText(responseText);
+  const dates = parsed.map((t) => t.date).filter(Boolean).sort();
+
+  return {
+    transactions: parsed,
+    method: "ai",
+    dateFrom: dates[0],
+    dateTo: dates[dates.length - 1],
+  };
+}
+
+async function parseWithAnthropic(text: string): Promise<ParseResult> {
+  const Anthropic = (await import("@anthropic-ai/sdk")).default;
+  const client = new Anthropic();
   const response = await client.messages.create({
     model: "claude-haiku-4-5-20251001",
     max_tokens: 4096,
-    messages: [
-      {
-        role: "user",
-        content: `Parse this bank statement and return transactions as JSON:\n\n${text.slice(0, 15000)}`,
-      },
-    ],
-    system: SYSTEM,
+    system: PROMPT,
+    messages: [{ role: "user", content: `Parse this bank statement:\n\n${text.slice(0, 15000)}` }],
   });
 
   const content = response.content[0];
-  if (content.type !== "text") {
-    return { transactions: [], method: "ai", error: "AI yanıt vermedi" };
-  }
+  if (content.type !== "text") throw new Error("No text response");
+  const parsed = parseJsonFromText(content.text);
+  const dates = parsed.map((t) => t.date).filter(Boolean).sort();
+
+  return {
+    transactions: parsed,
+    method: "ai",
+    dateFrom: dates[0],
+    dateTo: dates[dates.length - 1],
+  };
+}
+
+export async function parseWithAI(text: string): Promise<ParseResult> {
+  const hasGemini = !!process.env.GOOGLE_API_KEY;
+  const hasAnthropic = !!process.env.ANTHROPIC_API_KEY;
 
   try {
-    const jsonMatch = content.text.match(/\[[\s\S]*\]/);
-    if (!jsonMatch) throw new Error("No JSON array found");
-
-    const parsed = JSON.parse(jsonMatch[0]) as ParsedTransaction[];
-    const dates = parsed.map((t) => t.date).filter(Boolean).sort();
-
-    return {
-      transactions: parsed,
-      method: "ai",
-      dateFrom: dates[0],
-      dateTo: dates[dates.length - 1],
-    };
-  } catch {
-    return { transactions: [], method: "ai", error: "AI çıktısı parse edilemedi" };
+    if (hasGemini) return await parseWithGemini(text);
+    if (hasAnthropic) return await parseWithAnthropic(text);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "AI hatası";
+    return { transactions: [], method: "ai", error: msg };
   }
+
+  // No AI configured — return empty, non-fatal
+  return { transactions: [], method: "ai", error: "AI yapılandırılmamış — işlemler manuel eklenebilir" };
 }
