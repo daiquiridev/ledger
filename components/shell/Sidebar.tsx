@@ -61,6 +61,10 @@ export function Sidebar() {
           <div style={{ fontSize: 10.5 }}>dagkan@daiquiri.dev</div>
         </div>
       </div>
+
+      <div style={{ padding: "8px 16px 12px", fontSize: 10, color: "var(--ink-muted)", opacity: 0.5, userSelect: "none" }}>
+        {process.env.NEXT_PUBLIC_BUILD_DATE} · {process.env.NEXT_PUBLIC_GIT_HASH}
+      </div>
     </aside>
   );
 }
