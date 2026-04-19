@@ -1,0 +1,21 @@
+name: Deploy to Hetzner
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: 91.99.190.45
+          username: root
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /opt/docker/ledger/src
+            git pull
+            docker compose -f /opt/docker/ledger/docker-compose.yml build ledger_app
+            docker compose -f /opt/docker/ledger/docker-compose.yml up -d --no-deps ledger_app
